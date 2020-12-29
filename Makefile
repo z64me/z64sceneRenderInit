@@ -89,7 +89,7 @@ MAXBYTES = $(shell cat $(LDFILE) | grep MAXBYTES | head -n1)
 # NOTE   you can change this to a rom to target a rom directly; if
 #        you do that, you will want to add something to this makefile
 #        to produce a clean rom each run
-TARGET = $(shell printf 'patch/' && printf $(GAME) && printf '_z64scene_' && printf $(GAME) && printf '.txt')
+TARGET = $(shell printf 'patch/' && printf 'z64scene_' && printf $(GAME) && printf '.txt')
 #TARGET = "private/oot-debug.z64"
 
 # add the linker file for the chosen game to the compilation flags
