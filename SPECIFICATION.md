@@ -291,7 +291,7 @@ file in a hex editor.
 		
 		ffffffff aaaaaaaa tt ee xxxx dddddddd
 		
-			f = flag or (or four-byte-aligned address)
+			f = flag index (or four-byte-aligned address)
 			
 			a = and (bitwise value test) (used only for save/global/ram types)
 			
