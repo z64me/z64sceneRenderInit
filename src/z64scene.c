@@ -728,6 +728,8 @@ main(z64_global_t *gl)
 	gfx_ctxt = (gl->common).gfx_ctxt;
 	
 	//billboard_cylinder();
+   if (list != NULL && list->pad != 0xDE)
+		last_scene = -1;
 	
 	/* re-parse scene header on change */
 	/* TODO sun's song reload = crash */
