@@ -31,7 +31,8 @@ struct flag
 	enum8(flag_type)  type;   /* flag type         */
 	uint8_t           eq;     /* if (flag() == eq) */
 	uint16_t          xfade;  /* crossfade (color) */
-	uint32_t          frames; /* frames flag is on */
+	uint16_t          freeze; /* tells if command should be freeze or not written*/
+	uint16_t          frames; /* frames flag is on */
 };
 
 /* data processed by pointer_flag functions */
@@ -95,6 +96,7 @@ struct colorlist_flag
 {
 	struct flag       flag;   /* flag structure    */
 	struct colorlist  list;   /* color structure   */
+
 };
 
 /* pointer loop */
@@ -103,7 +105,7 @@ struct pointer_loop
 	uint16_t          dur;    /* duration of full cycle (frames) */
 	uint16_t          time;   /* frames elapsed (internal use)   */
 	uint16_t          each;   /* frames to display each item     */
-	uint16_t          pad;    /* unused; padding                 */
+	uint16_t          pad;    /* unused; padding    */
 	uint32_t          ptr[1]; /* list: dur/each elements long    */
 };
 
@@ -150,5 +152,18 @@ struct anim
 	uint16_t          type;   /* function          */
 	void             *data;   /* data              */
 };
+
+struct cameraeffect
+{
+	struct flag       flag;   /* flag structure    */
+	uint8_t		  cameratype;   /* camera type  */
+	uint8_t		  set;   /* used ingame to tell that the camera is set  */
+};
+
+struct conditionaldraw
+{
+	struct flag       flag;   /* flag structure    */
+};
+
 
 #endif /* Z64SCENE_TYPES_H_INCLUDED */
