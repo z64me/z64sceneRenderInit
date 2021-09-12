@@ -332,7 +332,7 @@ color_loop_flag(z64_global_t *gl, Gfx **work, struct colorlist_flag *c)
 		key = &Nkey;
 	
 	/* not across-fading, and flag is not active */
-	if (!active && !f->frames)
+	if (!active && !f->frames && !f->freeze)
 		return;
 	
 	/* if cross fading or flag is active, compute colors */
@@ -491,10 +491,20 @@ int
 pointer_loop_flag(z64_global_t *gl, Gfx **work, struct pointer_loop_flag *_ptr)
 {
 	struct pointer_loop *ptr = &_ptr->list;
-	if (!flag(gl, &_ptr->flag))
+	u8 flagstate = flag(gl, &_ptr->flag);
+	struct flag *f = &_ptr->flag;
+
+	if (!flagstate && f->freeze == 0)
 		return 0;
 	
 	pointer_loop(gl, work, ptr);
+
+
+	// if freeze mode is set, time doesnt advance when flag is not set
+	if (!flagstate && f->freeze == 1)
+		ptr->time -= 1;
+	
+
 	return 1;
 }
 
@@ -541,7 +551,7 @@ scroll_flag(z64_global_t *gl, Gfx **work, struct scroll_flag *scroll)
 {
 	struct scroll *sc = scroll->sc;
 	struct scroll *sc1 = sc + 1;
-	uint32_t frame = scroll->flag.frames;
+	uint16_t frame = scroll->flag.frames;
 	
 	if (flag(gl, &scroll->flag))
 		scroll->flag.frames++;
@@ -557,46 +567,84 @@ scroll_flag(z64_global_t *gl, Gfx **work, struct scroll_flag *scroll)
 	);
 }
 
-/* screen shake from Ganon's Tower escape sequence */
-#if 0 /* TODO does not compile with latest z64ovl */
-/* TODO the plan with this function was for it to allow
- *      customizable camera shaking; there was going to
- *      be another for a Jabu Jabu style effect; these
- *      can be lifted from the decomp if needed; also,
- *      invoke these functions only when an identifier
- *      in the 1A list is encountered
- */
+
+extern void external_func_800AA76C(void* view, f32 arg1, f32 arg2, f32 arg3);
+		asm("external_func_800AA76C = 0x800AA76C");
+
+extern void external_func_800AA78C(void* view, f32 arg1, f32 arg2, f32 arg3);
+		asm("external_func_800AA78C = 0x800AA78C");
+
+extern void external_func_800AA7AC(void* view, f32 arg1);
+		asm("external_func_800AA7AC = 0x800AA7AC");
+
+extern s32 FrameAdvance_IsEnabled(z64_global_t *gl);
+		asm("FrameAdvance_IsEnabled = 0x800C0D28");
+
+extern void external_func_8009BEEC(z64_global_t *gl);
+		asm("external_func_8009BEEC = 0x8009BEEC");
+
+
+/* change pointer as time progresses (each pointer has its own time) */
+/* skipped if flag is undesirable */
 static
-inline
-void
-cameramod_shake(z64_global_t *gl)
+int
+cameraeffect(z64_global_t *gl, Gfx **work, struct cameraeffect *cam) //TODO
 {
-	int handle;
-	void *cam = gl->camera.pointer[gl->camera.active];
-	
-	handle = camera_handle_get(cam, 2);
-	external_func_80092DAC(handle, 10000);
-	external_func_80092E70(handle, 4, 0, 0, 0);
-	external_func_80092DF0(handle, 127);
-	return;
-	
-	if (gl->gameplay_frames % 128 == 13)
+	u8 cameratype = cam->cameratype;
+	u8 set = cam->set;
+	if (!flag(gl, &cam->flag))
+		return 0;
+
+	if (cameratype == 0)
 	{
-		handle = camera_handle_get(cam, 2);
-		external_func_80092DAC(handle, 10000);
-		external_func_80092E70(handle, 4, 0, 0, 0);
-		external_func_80092DF0(handle, 127);
+		external_func_8009BEEC(gl); //camera shake
+	}
+	else //jabu jabu
+	{
+		static s16 D_8012A39C = 538;
+    	static s16 D_8012A3A0 = 4272;
+
+    	f32 temp;
+
+
+    	if (FrameAdvance_IsEnabled(gl) != true) {
+        D_8012A39C += 1820;
+        D_8012A3A0 += 1820;
+
+        temp = 0.020000001f;
+        external_func_800AA76C(&gl->view, ((360.00018f / 65535.0f) * (M_PI / 180.0f)) * temp * Math_Coss(D_8012A39C),
+                      ((360.00018f / 65535.0f) * (M_PI / 180.0f)) * temp * Math_Sins(D_8012A39C),
+                      ((360.00018f / 65535.0f) * (M_PI / 180.0f)) * temp * Math_Sins(D_8012A3A0));
+        external_func_800AA78C(&gl->view, 1.f + (0.79999995f * temp * Math_Sins(D_8012A3A0)),
+                      1.f + (0.39999998f * temp * Math_Coss(D_8012A3A0)), 1.f + (1 * temp * Math_Coss(D_8012A39C)));
+        external_func_800AA7AC(&gl->view, 0.95f); 
+
+
+
+     
+    }
+
+
 	}
 	
-	if ((gl->gameplay_frames % 64 == 0) && (math_rand_zero_one() > 0.6f))
-	{
-		handle = camera_handle_get(cam, 3);
-		external_func_80092DAC(handle, 32000.0f + math_rand_zero_one() * 3000.0f);
-		external_func_80092E70(handle, 10.0f - math_rand_zero_one() * 9.0f, 0, 0, 0);
-		external_func_80092DF0(handle, 48.0f - math_rand_zero_one() * 15.0f);
-	}
+
+	return 1;
 }
-#endif
+
+/* change pointer as time progresses (each pointer has its own time) */
+/* skipped if flag is undesirable */
+static
+int
+conditionaldraw(z64_global_t *gl, Gfx **work, struct conditionaldraw *_ptr)
+{
+	
+	if (!flag(gl, &_ptr->flag))
+		return 0;
+
+	return 1;
+}
+
+
 
 /* returns pointer to raw scene header data */
 static
@@ -679,32 +727,7 @@ unused_segment(z64_global_t *gl, int seg)
 	segment(gl, seg, Obuf);
 }
 
-/* create cylindrical billboard matrix */
-#if 0 /* if reintroduced, use updated code from this repo:
- https://github.com/z64me/rank_pointlights */
-static
-inline
-void
-billboard_cylinder(void)
-{
-	static uint8_t new_billboards__[0x80];
-	
-	uint8_t  *bbs = new_billboards__;//(uint8_t*)zh_seg2ram(0x01000000);
-	uint16_t *bbc = (uint16_t*)(bbs + 0x40);
-	
-	/* cylinder = copy of sphere */
-	memory_copy(bbs, bbc, 0x40);
-	
-	/* revert 'up' vector to identity */
-	bbc[0x08 / 2] = 0; /* x */
-	bbc[0x0A / 2] = 1; /* y */
-	bbc[0x0C / 2] = 0; /* z */
-	
-	bbc[0x28 / 2] = 0; /* x */
-	bbc[0x2A / 2] = 0; /* y */
-	bbc[0x2C / 2] = 0; /* z */
-}
-#endif
+
 
 void
 main(z64_global_t *gl)
@@ -727,9 +750,9 @@ main(z64_global_t *gl)
 	scene = gl->scene_index;	
 	gfx_ctxt = (gl->common).gfx_ctxt;
 	
-	//billboard_cylinder();
-   if (list != NULL && list->pad != 0xDE)
-		last_scene = -1;
+	//if (list != NULL && list->pad != 0xDE)
+	//	last_scene = -1;
+	
 	
 	/* re-parse scene header on change */
 	/* TODO sun's song reload = crash */
@@ -741,6 +764,7 @@ main(z64_global_t *gl)
 		/* preprocess the list, converting to faster format */
 		if (list)
 		{
+		//	list->pad = 0xDE;
 			for (item = list; ; ++item)
 			{
 				int8_t Oseg = item->seg;
@@ -915,6 +939,16 @@ main(z64_global_t *gl)
 				if (pointer_timeloop_flag(gl, &work, data))
 					has_written_pointer = 1;
 				Owork = work;
+				break;
+
+			/* camera effect if flag is set */
+			case 0x000F:
+				cameraeffect(gl, &work, data);
+				break;
+
+			/* draw if flag is set */
+			case 0x0010:
+				conditionaldraw(gl, &work, data);
 				break;
 			
 			default:
