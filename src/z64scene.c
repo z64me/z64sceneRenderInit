@@ -591,7 +591,6 @@ int
 cameraeffect(z64_global_t *gl, Gfx **work, struct cameraeffect *cam) //TODO
 {
 	u8 cameratype = cam->cameratype;
-	u8 set = cam->set;
 	if (!flag(gl, &cam->flag))
 		return 0;
 
@@ -635,11 +634,23 @@ cameraeffect(z64_global_t *gl, Gfx **work, struct cameraeffect *cam) //TODO
 /* skipped if flag is undesirable */
 static
 int
-conditionaldraw(z64_global_t *gl, Gfx **work, struct conditionaldraw *_ptr)
+conditionaldraw(z64_global_t *gl, Gfx **work, struct conditionaldraw *_ptr, int seg)
 {
-	
+	Matrix_Push();
 	if (!flag(gl, &_ptr->flag))
-		return 0;
+	{
+		Matrix_Scale(0.0f, 0.0f, 0.0f, MTXMOD_NEW);
+	}
+	else
+	{
+		Matrix_Scale(1.0f, 1.0f, 1.0f, MTXMOD_NEW);
+	}
+
+	gSPSegment((*work)++, seg, Matrix_NewMtx(gl->common.gfx_ctxt, 0));
+
+	matrix_pop();
+
+
 
 	return 1;
 }
@@ -755,7 +766,6 @@ main(z64_global_t *gl)
 	
 	
 	/* re-parse scene header on change */
-	/* TODO sun's song reload = crash */
 	if (scene != last_scene)
 	{
 		list = get_0x1A(zh_get_current_scene_header(gl));
@@ -948,7 +958,7 @@ main(z64_global_t *gl)
 
 			/* draw if flag is set */
 			case 0x0010:
-				conditionaldraw(gl, &work, data);
+				conditionaldraw(gl, &work, data, seg);
 				break;
 			
 			default:
