@@ -761,8 +761,8 @@ main(z64_global_t *gl)
 	scene = gl->scene_index;	
 	gfx_ctxt = (gl->common).gfx_ctxt;
 	
-	//if (list != NULL && list->pad != 0xDE)
-	//	last_scene = -1;
+	if (list != NULL && list->pad != 0xDE)
+		last_scene = -1;
 	
 	
 	/* re-parse scene header on change */
@@ -774,7 +774,7 @@ main(z64_global_t *gl)
 		/* preprocess the list, converting to faster format */
 		if (list)
 		{
-		//	list->pad = 0xDE;
+			list->pad = 0xDE;
 			for (item = list; ; ++item)
 			{
 				int8_t Oseg = item->seg;
