@@ -18,7 +18,7 @@ YouTube video:
 
 - ~~Cylindrical billboarding~~ use [this patch](https://github.com/z64me/rank_pointlights) instead
 
-- TODO: Easy Lens of Truth meshes (this was going to be accomplished via DE command to DA command to `00`'d matrix to selectively make models visible or invisible by scaling them based on whether Lens of Truth was active)
+- Easy Lens of Truth meshes
 
 - ~~TODO: Custom mini-maps~~
 
