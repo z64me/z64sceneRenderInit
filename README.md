@@ -1,4 +1,4 @@
-# z64scene
+# z64sceneRenderInit
 
 YouTube video:
 
@@ -6,7 +6,7 @@ YouTube video:
 
 ## TODO: I never finalized this for release, so you still have to overwrite Kokiri Forest when testing it.
 
-`z64scene` is a mod whose purpose is to extend OoT's scene functionality. Features include:
+`z64sceneRenderInit` is a mod whose purpose is to extend OoT's scene functionality. Features include:
 
 - Textures that scroll however you like
 
