@@ -4,8 +4,6 @@
 
 #include "types.h"
 
-// TODO eliminate Z64GL_IS_NIGHT and Z64GL_SAVE_CONTEXT;
-//      these should be derived from the z64_global_t
 
 /* global variables contained within */
 static struct
@@ -688,24 +686,23 @@ inline
 struct anim *
 get_0x1A(void *_scene)
 {
-	unsigned char *scene = _scene;
-	unsigned char *header = scene;
+	u32 *scene = _scene;
+	u32 *header = scene;
+	u32 *mainheader = global->scene_file;
 	
 	if (!scene)
 		return 0;
 	
 	/* while current header command is not end command */
-	while (*header != 0x14)
-	{
-		/* animated texture list */
-		if (*header == 0x1A)
-			return (struct anim*)(
-				scene + (*((uint32_t*)(header + 4)) & 0xFFFFFF)
-			);
-		
-		/* advance to next header command */
-		header += 8;
-	}
+    while (*header != 0x14000000) {
+        /* animated texture list */
+        if (*header == 0x1A000000) {  
+            return AADDR(mainheader,AVAL(header,u32,4) & 0xFFFFFF);   
+        }
+         
+        /* advance to next header command */
+        header += 2;
+    }
 	
 	/* failed to locate 0x1A command */
 	return 0;
