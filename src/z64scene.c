@@ -92,57 +92,7 @@ flag(z64_global_t *gl, struct flag *f)
 	return f->eq == r;
 }
 
-/* given a color list header and gameplay frame, *
- * get the keyframe within the color list        */
-static
-struct colorkey *
-get_colorkey(struct colorlist *list, uint32_t *frame)
-{
-	struct colorkey *key;
-	uint32_t along = 0;
-	
-	if (!list->dur)
-		return list->key;
-	
-	/* loop */
-	*frame %= list->dur;
-	
-	/* locate appropriate keyframe */
-	for (key = list->key; key->next; ++key)
-	{
-		uint32_t next = along + key->next;
-		
-		/* keyframe range encompasses frame */
-		if (*frame >= along && *frame <= next)
-			return key;
-		
-		/* advance to next frame range */
-		along = next;
-	}
-	
-	/* found none; return first keyframe */
-	return list->key;
-}
 
-/* get next key in list */
-static
-struct colorkey *
-get_colorkey_next(struct colorlist *list, struct colorkey *key)
-{
-	/* next == 0 indicates end of list */
-	if (!key->next)
-		return key;
-	
-	/* advance to next key */
-	key += 1;
-	
-	/* key->next == 0 indicates end of list, so loop to first key */
-	if (!key->next)
-		return list->key;
-	
-	/* return next key */
-	return key;
-}
 
 static
 inline
@@ -159,6 +109,7 @@ ease_8(int from, int to, float factor)
 {
 	return ease_int(from, to, factor) & 0xFF;
 }
+
 
 static
 inline
@@ -212,7 +163,6 @@ colorkey_put(uint8_t which, Gfx **work, struct colorkey *key)
 }
 
 static
-inline
 void
 colorkey_blend(
 	enum8(colorkey_types) which
@@ -232,7 +182,7 @@ colorkey_blend(
 	if (which & COLORKEY_PRIM)
 	{
 		result->prim = ease_rgba(from->prim, to->prim, factor);
-		
+
 		if (which & COLORKEY_LODFRAC)
 			result->lfrac = ease_8(from->lfrac, to->lfrac, factor);
 		
@@ -289,20 +239,79 @@ inline
 void
 color_loop(z64_global_t *gl, Gfx **work, struct colorlist *list)
 {
+	// noka: rewrote entire function because it didnt function correctly
+
 	struct colorkey *from;
 	struct colorkey *to;
-	uint32_t frame = gl->gameplay_frames;
-	float factor;
+	struct colorkey *lastkey = NULL;
+	struct colorkey *prevkey;
+	struct colorkey *key;
+
+	u32 totalframes = list->dur;
+	if (!list->dur)
+		totalframes = 1;
+	u32 tempframe = 0;
+	u32 globalframe = gl->gameplay_frames;
+
+	//get last key in the list
+	for (key = list->key; key->next; ++key)
+	{
+		lastkey = key;
+	}
+
+	u32 currentframe = globalframe % totalframes;
+	u32 relativeframe = currentframe;
+	u32 i = 0;
+
+	//these 2 lines avoid a crash
+	from = list->key;
+	to = list->key;
+
+	for (key = list->key; key->next; ++key)
+	{
+		tempframe += key->next;
+
+        if (currentframe < tempframe)
+        {
+        	//set keyframes and blend the colors
+
+            to = key;
+
+            if (i == 0 && !key->next)
+            {
+                from = key;
+            }
+            else
+            {
+                if (i == 0)
+                    from = lastkey;
+                else
+					from = prevkey;
+                
+            }
+
+           
+
+            float lerpamount = 0.0f;
+
+            if (relativeframe != 0) lerpamount = (1.0f/ to->next) * (float)(relativeframe);
+
+			colorkey_blend(list->which, lerpamount, from, to, &g.Pcolorkey);
+			
+			colorkey_put(list->which, work, &g.Pcolorkey);
+
+
+            break;
+        }
+        relativeframe -= key->next;
+        prevkey = key;
+        i++;
+
+
+	}
+
 	
-	from = get_colorkey(list, &frame);
-	to = get_colorkey_next(list, from);
-	
-	factor = interp(frame, from->next, list->ease);
-	
-	/* blend color keys (result goes into Pcolorkey) */
-	colorkey_blend(list->which, factor, from, to, &g.Pcolorkey);
-	
-	colorkey_put(list->which, work, &g.Pcolorkey);
+
 }
 
 static
@@ -310,13 +319,15 @@ inline
 void
 color_loop_flag(z64_global_t *gl, Gfx **work, struct colorlist_flag *c)
 {
+	//xfading commented out to save space
+
 	struct flag *f = &c->flag;
 	struct colorlist *list = &c->list;
 	
 	struct colorkey *key;
-	struct colorkey  Nkey;
+	//struct colorkey  Nkey;
 	int active = flag(gl, f);
-	int xfading = (f->frames || active) && f->frames <= f->xfade && f->xfade;
+	//int xfading = (f->frames || active) && f->frames <= f->xfade && f->xfade;
 	
 	enum8(colorkey_types) which = list->which;
 	
@@ -324,33 +335,29 @@ color_loop_flag(z64_global_t *gl, Gfx **work, struct colorlist_flag *c)
 	//	scroll->flag.frames++;
 	
 	/* if not cross fading, write to Pcolorkey */
+	/*
 	if (!xfading)
 		key = &g.Pcolorkey;
 	else
-		key = &Nkey;
+		key = &Nkey;*/
+
+	key = &g.Pcolorkey;
 	
 	/* not across-fading, and flag is not active */
 	if (!active && !f->frames && !f->freeze)
 		return;
 	
 	/* if cross fading or flag is active, compute colors */
-	if (active || xfading)
+	if (active)//|| xfading
 	{
-		struct colorkey *from;
-		struct colorkey *to;
-		uint32_t frame = gl->gameplay_frames;
-		float factor;
-		
-		from = get_colorkey(list, &frame);
-		to = get_colorkey_next(list, from);
-		
-		factor = interp(frame, from->next, list->ease);
-		
-		/* blend color keys (result goes into key) */
-		colorkey_blend(which, factor, from, to, key);
+		color_loop(gl, work, list);
 	}
+	else 
+		colorkey_put(which, work, key);
 	
 	/* if cross fading, interpolate between old and new colors */
+
+	/*
 	if (xfading)
 	{
 		float factor;
@@ -362,12 +369,13 @@ color_loop_flag(z64_global_t *gl, Gfx **work, struct colorlist_flag *c)
 		
 		factor = interp(f->frames, f->xfade, list->ease);
 		
-		/* blend color keys (result goes into Pcolorkey) */
+		// blend color keys (result goes into Pcolorkey) 
 		colorkey_blend(which, factor, &g.Pcolorkey, key, &g.Pcolorkey);
 		key = &g.Pcolorkey;
-	}
+	}*/
+
+	//colorkey_put(which, work, key);
 	
-	colorkey_put(which, work, key);
 }
 
 static
@@ -681,10 +689,11 @@ zh_get_current_scene_header(z64_global_t *global)
 	return header;
 }
 
+
 static
 inline
 struct anim *
-get_0x1A(void *_scene)
+get_0x1A(void* _scene, z64_global_t *global)
 {
 	u32 *scene = _scene;
 	u32 *header = scene;
@@ -740,6 +749,7 @@ unused_segment(z64_global_t *gl, int seg)
 void
 main(z64_global_t *gl)
 {
+	//
 	/* persistent storage */
 	static struct anim *list = 0;
 	static uint16_t last_scene = -1;
@@ -760,12 +770,12 @@ main(z64_global_t *gl)
 	
 	if (list != NULL && list->pad != 0xDE)
 		last_scene = -1;
-	
+
 	
 	/* re-parse scene header on change */
 	if (scene != last_scene)
 	{
-		list = get_0x1A(zh_get_current_scene_header(gl));
+		list = get_0x1A(zh_get_current_scene_header(gl),gl);
 		last_scene = scene;
 		
 		/* preprocess the list, converting to faster format */
