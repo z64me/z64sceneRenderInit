@@ -515,18 +515,17 @@ pointer_loop_flag(z64_global_t *gl, Gfx **work, struct pointer_loop_flag *_ptr)
 }
 
 /* scroll one tile layer */
-// TODO does MM really scroll only one layer using this?
 static
 inline
 void
 scroll(z64_global_t *gl, Gfx **work, struct scroll *sc)
 {
 	uint32_t frame = gl->gameplay_frames;
-	
-	gDPSetTileSize(
-		(*work)++
-		, 0,  sc->u * frame,  sc->v * frame,  sc->w,  sc->h
+	Gfx *dl = Gfx_TexScroll(gl->common.gfx_ctxt
+		, 0, sc->u * frame, -(sc->v * frame), sc->w, sc->h // xywh[0]
 	);
+	
+	gSPDisplayList((*work)++, dl);
 }
 
 /* scroll two tile layers */
@@ -537,16 +536,12 @@ scroll_two(z64_global_t *gl, Gfx **work, struct scroll *sc)
 {
 	struct scroll *sc1 = sc + 1;
 	uint32_t frame = gl->gameplay_frames;
-	
-	gDPSetTileSize(
-		(*work)++
-		, 0,  sc->u * frame,  sc->v * frame,  sc->w,  sc->h
+	Gfx *dl = Gfx_TwoTexScroll(gl->common.gfx_ctxt
+		, 0, sc->u * frame, -(sc->v * frame), sc->w, sc->h // xywh[0]
+		, 1, sc1->u * frame, -(sc1->v * frame), sc1->w, sc1->h // xywh[1]
 	);
 	
-	gDPSetTileSize(
-		(*work)++
-		, 1, sc1->u * frame, sc1->v * frame, sc1->w, sc1->h
-	);
+	gSPDisplayList((*work)++, dl);
 }
 
 /* scroll tiles based on flag */
